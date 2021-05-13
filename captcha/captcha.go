@@ -49,15 +49,13 @@ func (c *Invisible) Handle(next http.Handler) http.Handler {
 					return
 				}
 
-				ip := strings.Split(r.RemoteAddr, ":")[0]
-				if splits := strings.Split(r.Header.Get("X-Forwarded-For"), ","); splits[0] != "" {
-					ip = splits[0]
-				}
+				ip := IpAsKey(r)
 
 				var form url.Values
 				form.Set("secret", c.Secret)
 				form.Set("response", response)
 				form.Set("remoteip", ip)
+
 				res, err := http.PostForm(recpatchaVerifyUrl, form)
 				if err != nil {
 					c.ErrorLogger("unable to verify recaptcha token", err)
@@ -97,4 +95,13 @@ type recaptchaResponse struct {
 	ChallengeTimestamp time.Time `json:"challenge_ts"`
 	Hostname           string    `json:"hostname"`
 	ErrorCodes         []string  `json:"error-codes"`
+}
+
+func IpAsKey(r *http.Request) string {
+	ip := strings.Split(r.RemoteAddr, ":")[0]
+	if splits := strings.Split(r.Header.Get("X-Forwarded-For"), ","); splits[0] != "" {
+		ip = splits[0]
+	}
+
+	return ip
 }
