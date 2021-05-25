@@ -51,7 +51,7 @@ func (c *Invisible) Handle(next http.Handler) http.Handler {
 
 				ip := IpAsKey(r)
 
-				var form url.Values
+				form := make(url.Values)
 				form.Set("secret", c.Secret)
 				form.Set("response", response)
 				form.Set("remoteip", ip)
