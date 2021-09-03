@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gobwas/glob"
 	"github.com/srikrsna/rampart"
 )
 
@@ -26,6 +27,7 @@ type Invisible struct {
 	Secret      string
 	Rampart     *rampart.Rampart
 	KeyFunc     func(r *http.Request) string
+	Skip        func(r *http.Request) bool
 	ErrorLogger func(message string, err error)
 }
 
@@ -35,6 +37,10 @@ func (c *Invisible) Handle(next http.Handler) http.Handler {
 
 		switch r.Method {
 		case http.MethodPost, http.MethodPatch, http.MethodPut, http.MethodDelete:
+			if c.Skip(r) {
+				break
+			}
+
 			key := c.KeyFunc(r)
 			canpass, err := c.Rampart.CanPass(ctx, key)
 			if err != nil {
@@ -100,8 +106,45 @@ type recaptchaResponse struct {
 func IpAsKey(r *http.Request) string {
 	ip := strings.Split(r.RemoteAddr, ":")[0]
 	if splits := strings.Split(r.Header.Get("X-Forwarded-For"), ","); splits[0] != "" {
-		ip = splits[0]
+		ip = strings.TrimSpace(splits[0])
 	}
 
 	return ip
+}
+
+func IpSkip(ips ...string) func(r *http.Request) bool {
+	for i := range ips {
+		ips[i] = strings.TrimSpace(ips[i])
+	}
+
+	return func(r *http.Request) bool {
+		ip := IpAsKey(r)
+		for _, aip := range ips {
+			if ip == aip {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+func PathSkip(patterns ...string) (func(r *http.Request) bool, error) {
+	globs := make([]glob.Glob, 0, len(patterns))
+	for _, p := range patterns {
+		g, err := glob.Compile(p)
+		if err != nil {
+			return nil, err
+		}
+		globs = append(globs, g)
+	}
+
+	return func(r *http.Request) bool {
+		path := strings.TrimSpace(strings.ToLower(r.URL.Path))
+		for _, g := range globs {
+			if g.Match(path) {
+				return true
+			}
+		}
+		return false
+	}, nil
 }
