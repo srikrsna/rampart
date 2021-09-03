@@ -138,8 +138,8 @@ func PathSkip(patterns ...string) (func(r *http.Request) bool, error) {
 		globs = append(globs, g)
 	}
 
-	return func(r *http.Request) bool {
-		path := strings.TrimSpace(strings.ToLower(r.URL.Path))
+	return func(r *http.Request) bool {		
+		path := strings.Split(r.URL.Host, ":")[0] + strings.TrimSpace(strings.ToLower(r.URL.Path))
 		for _, g := range globs {
 			if g.Match(path) {
 				return true
