@@ -88,6 +88,10 @@ func (c *Invisible) Handle(next http.Handler) http.Handler {
 					c.ErrorLogger("error in verification", errors.New(cr.ErrorCodes[0]))
 					http.Error(w, "Unknown Error", http.StatusInternalServerError)
 					return
+				} 
+
+				if err := c.Rampart.Clear(r.Context(), key); err != nil {
+					c.ErrorLogger("unable to clear key", err)
 				}
 			}
 		}
